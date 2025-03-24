@@ -9,15 +9,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
-      # Step 1: Setup SSH Key
       - name: Setup SSH Key
         env:
           SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
         run: |
-          echo "$SSH_KEY" | base64 --decode > s.pem
+          echo "$SSH_KEY" > s.pem
           chmod 400 s.pem
 
-      # Step 2: Connect to EC2 and Pull Latest Code
       - name: Pull Latest Code from Git
         env:
           EC2_USER: ${{ secrets.DEPLOY_USER }}
@@ -28,7 +26,6 @@ jobs:
             git pull origin master
           EOF
 
-      # Step 3: Build Go Application
       - name: Testing and Building Go Application
         env:
           EC2_USER: ${{ secrets.DEPLOY_USER }}
@@ -49,7 +46,6 @@ jobs:
             go build -o user-api ./cmd/main.go
           EOF
 
-      # Step 4: Restart Application Service
       - name: Restart Application Service
         env:
           EC2_USER: ${{ secrets.DEPLOY_USER }}
@@ -59,7 +55,6 @@ jobs:
             sudo systemctl restart thefurnishstore.service
           EOF
 
-      # Step 5: Cleanup SSH Key
       - name: Cleanup
         run: |
           rm -f s.pem
