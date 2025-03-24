@@ -1,35 +1,65 @@
-name: Deploy Go App to EC2
+name: CI/CD Pipeline for user-api
 
 on:
   push:
-    branches:
-      - master 
+    branches: [master]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
-      - name: 🚀 Checkout repository
-        uses: actions/checkout@v3
 
-      - name: ⚙️ Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: 1.21  
-
-      - name: 🔧 Build the Go application
+      # Step 1: Setup SSH Key
+      - name: Setup SSH Key
+        env:
+          SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
         run: |
-          go build -o main ./cmd/main.go
+          echo "$SSH_KEY" | base64 --decode > s.pem
+          chmod 400 s.pem
 
-      - name: 🔑 Deploy to EC2
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.EC2_HOST }}     
-          username: ubuntu                 
-          key: ${{ secrets.EC2_SSH_KEY }}   
-          script: |
+      # Step 2: Connect to EC2 and Pull Latest Code
+      - name: Pull Latest Code from Git
+        env:
+          EC2_USER: ${{ secrets.DEPLOY_USER }}
+          EC2_IP: ${{ secrets.EC2_HOST }}
+        run: |
+          ssh -i s.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_IP << 'EOF'
             cd /home/ubuntu/test
             git pull origin master
-            go build -o main ./cmd/main.go
-            sudo systemctl restart myapp
+          EOF
+
+      # Step 3: Build Go Application
+      - name: Testing and Building Go Application
+        env:
+          EC2_USER: ${{ secrets.DEPLOY_USER }}
+          EC2_IP: ${{ secrets.EC2_HOST }}
+        run: |
+          ssh -i s.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_IP << 'EOF'
+            # Update system packages
+            sudo apt update
+            sudo apt install -y golang-go
+            
+            # Verify Go installation
+            go version
+
+            # Navigate to the project directory and build the app
+            cd /home/ubuntu/test
+            go mod tidy
+            go test ./... -v
+            go build -o user-api ./cmd/main.go
+          EOF
+
+      # Step 4: Restart Application Service
+      - name: Restart Application Service
+        env:
+          EC2_USER: ${{ secrets.DEPLOY_USER }}
+          EC2_IP: ${{ secrets.EC2_HOST }}
+        run: |
+          ssh -i s.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_IP << 'EOF'
+            sudo systemctl restart thefurnishstore.service
+          EOF
+
+      # Step 5: Cleanup SSH Key
+      - name: Cleanup
+        run: |
+          rm -f s.pem
