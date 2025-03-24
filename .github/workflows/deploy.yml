@@ -52,7 +52,7 @@ jobs:
           EC2_IP: ${{ secrets.EC2_HOST }}
         run: |
           ssh -i s.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_IP << 'EOF'
-            sudo systemctl restart thefurnishstore.service
+            sudo systemctl restart myapp.service
           EOF
 
       - name: Cleanup
