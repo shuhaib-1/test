@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"test/handler"
@@ -17,7 +16,6 @@ func main() {
 
 	handler.RegisterRoutes()
 
-	fmt.Println("Server running on port: 3000")
 	err := http.ListenAndServe(":3000", nil)
 	if err != nil {
 		log.Fatal("Error starting server: ", err)
