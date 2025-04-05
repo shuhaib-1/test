@@ -6,55 +6,70 @@ on:
 
 jobs:
   deploy:
+    name: Deploy to EC2
     runs-on: ubuntu-latest
+
+    env:
+      SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+      EC2_USER: ${{ secrets.DEPLOY_USER }}
+      EC2_IP: ${{ secrets.EC2_HOST }}
+      PROJECT_DIR: /home/ubuntu/test
+      BINARY_NAME: user-api
+      SERVICE_NAME: myapp.service
+
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
 
       - name: Setup SSH Key
-        env:
-          SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
         run: |
           echo "$SSH_KEY" > s.pem
           chmod 400 s.pem
 
-      - name: Pull Latest Code from Git
-        env:
-          EC2_USER: ${{ secrets.DEPLOY_USER }}
-          EC2_IP: ${{ secrets.EC2_HOST }}
+      - name: Pull Latest Code and Backup Current Binary
         run: |
-          ssh -i s.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_IP << 'EOF'
-            cd /home/ubuntu/test
+          ssh -i s.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_IP << EOF
+            set -e
+            cd $PROJECT_DIR
+
+            echo "Pulling latest code..."
             git pull origin master
+
+            echo "Creating backup of current binary..."
+            if [ -f $BINARY_NAME ]; then
+              cp $BINARY_NAME ${BINARY_NAME}.bak
+            fi
           EOF
 
-      - name: Testing and Building Go Application
-        env:
-          EC2_USER: ${{ secrets.DEPLOY_USER }}
-          EC2_IP: ${{ secrets.EC2_HOST }}
+      - name: Build and Restart Application with Rollback Support
         run: |
           ssh -i s.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_IP << 'EOF'
-            # Update system packages
-            sudo apt update
-            sudo apt install -y golang-go
-            
-            # Verify Go installation
-            go version
+            set -e
+            cd $PROJECT_DIR
 
-            # Navigate to the project directory and build the app
-            cd /home/ubuntu/test
+            echo "Installing Go..."
+            sudo apt update -y && sudo apt install -y golang-go
+
+            echo "Building new binary..."
             go mod tidy
             go test ./... -v
             go build -o user-api ./cmd/main.go
+
+            echo "Restarting service..."
+            if ! sudo systemctl restart myapp.service; then
+              echo "Service restart failed. Rolling back..."
+              if [ -f user-api.bak ]; then
+                mv user-api.bak user-api
+                sudo systemctl restart myapp.service
+                echo "Rollback successful."
+              else
+                echo "No backup found to rollback."
+              fi
+              exit 1
+            fi
+
+            echo "Deployment successful."
           EOF
 
-      - name: Restart Application Service
-        env:
-          EC2_USER: ${{ secrets.DEPLOY_USER }}
-          EC2_IP: ${{ secrets.EC2_HOST }}
-        run: |
-          ssh -i s.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_IP << 'EOF'
-            sudo systemctl restart myapp.service
-          EOF
-
-      - name: Cleanup
-        run: |
-          rm -f s.pem
+      - name: Cleanup SSH Key
+        run: rm -f s.pem
