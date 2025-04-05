@@ -44,3 +44,33 @@ func TestCreateUserHandler(t *testing.T) {
 	require.Equal(t, http.StatusCreated, rec.Code)
 	mockUsecase.AssertCalled(t, "CreateUser", user)
 }
+
+func TestCreateUserHanlder_InvalidJSON(t *testing.T) {
+	mockUsecase := new(MockUsecase)
+	handler := handler.NewUserHandler(mockUsecase)
+
+	invalidJSON := []byte(`{"name": "shuhaib", "email":}`)
+	req := httptest.NewRequest(http.MethodPost, "/user", bytes.NewBuffer(invalidJSON))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	handler.CreateUser(rec, req)
+
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestCreateUserHandler_MissingFields(t *testing.T) {
+	mockUsecase := new(MockUsecase)
+	handler := handler.NewUserHandler(mockUsecase)
+
+	user := domain.User{Name: "", Email: ""}
+	body, _ := json.Marshal(user)
+
+	req := httptest.NewRequest(http.MethodPost, "/user", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	handler.CreateUser(rec, req)
+
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+}

@@ -28,6 +28,11 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if user.Email == "" || user.Name == "" {
+		http.Error(w, "Name and Email are required", http.StatusBadRequest)
+		return
+	}
+
 	if err := h.UseCase.CreateUser(user); err != nil {
 		http.Error(w, "Could not create user", http.StatusInternalServerError)
 		return
