@@ -51,6 +51,7 @@ jobs:
             sudo apt update -y && sudo apt install -y golang-go
 
             echo "Building new binary..."
+            cd /home/ubuntu/test
             go mod tidy
             go test ./... -v
             go build -o user-api ./cmd/main.go
