@@ -58,3 +58,33 @@ func TestGetUserById(t *testing.T) {
 		t.Errorf("unexpected user: %+v", user)
 	}
 }
+
+func TestGetUserById_NotFound(t *testing.T) {
+	mockRepo := &MockRepository{
+		FindByIDFunc: func(id int) (domain.User, error) {
+			return domain.User{}, fmt.Errorf("user not found")
+		},
+	}
+
+	uc := usecase.NewUserUseCase(mockRepo)
+	_, err := uc.GetUserById(99)
+
+	if err == nil {
+		t.Errorf("expected error for non-existing user, got nil")
+	}
+}
+
+func TestGetUserById_RepositoryError(t *testing.T) {
+	mockRepo := &MockRepository{
+		FindByIDFunc: func(id int) (domain.User, error) {
+			return domain.User{}, fmt.Errorf("database error")
+		},
+	}
+
+	uc := usecase.NewUserUseCase(mockRepo)
+	_, err := uc.GetUserById(1)
+
+	if err == nil {
+		t.Errorf("expected database error, got nil")
+	}
+}
