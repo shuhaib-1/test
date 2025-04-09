@@ -33,7 +33,7 @@ jobs:
             cd $PROJECT_DIR
 
             echo "Pulling latest code..."
-            git pull origin master
+            git pull --rebase origin master
 
             echo "Creating backup of current binary..."
             if [ -f $BINARY_NAME ]; then
