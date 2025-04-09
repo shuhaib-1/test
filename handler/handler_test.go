@@ -3,16 +3,18 @@ package handler_test
 import (
 	"bytes"
 	"encoding/json"
-	"net/http"
 	"net/http/httptest"
+	"strings"
 	"test/domain"
 	"test/handler"
 	"testing"
 
+	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
+// Mock implementation of UserUseCase
 type MockUsecase struct {
 	mock.Mock
 }
@@ -28,49 +30,55 @@ func (m *MockUsecase) GetUserById(id int) (domain.User, error) {
 }
 
 func TestCreateUserHandler(t *testing.T) {
+	app := fiber.New()
+
 	mockUsecase := new(MockUsecase)
-	handler := handler.NewUserHandler(mockUsecase)
+	h := handler.NewUserHandler(mockUsecase)
+	app.Post("/user", h.CreateUser)
 
 	user := domain.User{Name: "shuhaib", Email: "shuhaib@gmail.com"}
 	mockUsecase.On("CreateUser", user).Return(nil)
 
 	body, _ := json.Marshal(user)
-	req := httptest.NewRequest(http.MethodPost, "/user", bytes.NewBuffer(body))
+	req := httptest.NewRequest("POST", "/user", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
 
-	handler.CreateUser(rec, req)
+	resp, err := app.Test(req, -1)
+	require.NoError(t, err)
+	require.Equal(t, fiber.StatusCreated, resp.StatusCode)
 
-	require.Equal(t, http.StatusCreated, rec.Code)
 	mockUsecase.AssertCalled(t, "CreateUser", user)
 }
 
-func TestCreateUserHanlder_InvalidJSON(t *testing.T) {
+func TestCreateUserHandler_InvalidJSON(t *testing.T) {
+	app := fiber.New()
+
 	mockUsecase := new(MockUsecase)
-	handler := handler.NewUserHandler(mockUsecase)
+	h := handler.NewUserHandler(mockUsecase)
+	app.Post("/user", h.CreateUser)
 
-	invalidJSON := []byte(`{"name": "shuhaib", "email":}`)
-	req := httptest.NewRequest(http.MethodPost, "/user", bytes.NewBuffer(invalidJSON))
+	body := `{"name": "shuhaib", "email":}` // invalid JSON
+	req := httptest.NewRequest("POST", "/user", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
 
-	handler.CreateUser(rec, req)
-
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	resp, err := app.Test(req, -1)
+	require.NoError(t, err)
+	require.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
 }
 
 func TestCreateUserHandler_MissingFields(t *testing.T) {
+	app := fiber.New()
+
 	mockUsecase := new(MockUsecase)
-	handler := handler.NewUserHandler(mockUsecase)
+	h := handler.NewUserHandler(mockUsecase)
+	app.Post("/user", h.CreateUser)
 
 	user := domain.User{Name: "", Email: ""}
 	body, _ := json.Marshal(user)
-
-	req := httptest.NewRequest(http.MethodPost, "/user", bytes.NewBuffer(body))
+	req := httptest.NewRequest("POST", "/user", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
 
-	handler.CreateUser(rec, req)
-
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	resp, err := app.Test(req, -1)
+	require.NoError(t, err)
+	require.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
 }
