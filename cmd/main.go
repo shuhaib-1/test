@@ -6,19 +6,15 @@ import (
 	"test/handler"
 	"test/repository"
 	"test/usecase"
-
-	"github.com/gofiber/fiber/v2"
 )
 
 func main() {
-
-	app := fiber.New()
 
 	repo := repository.NewUserRepository()
 	uc := usecase.NewUserUseCase(repo)
 	handler := handler.NewUserHandler(uc)
 
-	handler.RegisterRoutes(app)
+	handler.RegisterRoutes()
 
 	err := http.ListenAndServe(":3000", nil)
 	if err != nil {

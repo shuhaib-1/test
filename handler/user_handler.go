@@ -1,11 +1,11 @@
 package handler
 
 import (
+	"encoding/json"
+	"net/http"
 	"strconv"
 	"test/domain"
 	"test/usecase"
-
-	"github.com/gofiber/fiber"
 )
 
 type UserHandler struct {
@@ -16,58 +16,51 @@ func NewUserHandler(uc usecase.UserUseCase) *UserHandler {
 	return &UserHandler{UseCase: uc}
 }
 
-func (h *UserHandler) RegisterRoutes(app *fiber.App) {
-	userGroup := app.Group("/user")
-	userGroup.Post("/", h.CreateUser)
-	userGroup.Get("/get", h.GetUserById)
+func (h *UserHandler) RegisterRoutes() {
+	http.HandleFunc("/user", h.CreateUser)
+	http.HandleFunc("/user/get", h.GetUserById)
 }
 
-func (h *UserHandler) CreateUser(c *fiber.Ctx) error {
+func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	var user domain.User
-
-	if err := c.BodyParser(&user); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "failed to parse the input",
-		})
+	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
 	}
 
 	if user.Email == "" || user.Name == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "name and email is required",
-		})
+		http.Error(w, "Name and Email are required", http.StatusBadRequest)
+		return
 	}
 
 	if err := h.UseCase.CreateUser(user); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "could not create user",
-		})
+		http.Error(w, "Could not create user", http.StatusInternalServerError)
+		return
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(user)
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(user)
 }
 
-func (h *UserHandler) GetUserById(c *fiber.Ctx) error {
-
-	idStr := c.Query("id")
+func (h *UserHandler) GetUserById(w http.ResponseWriter, r *http.Request) {
+	idStr := r.URL.Query().Get("id")
 	if idStr == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "id is required",
-		})
+		http.Error(w, "ID is required", http.StatusBadRequest)
+		return
 	}
 
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "invalid id format",
-		})
+		http.Error(w, "Invalid ID format", http.StatusBadRequest)
+		return
 	}
 
 	user, err := h.UseCase.GetUserById(id)
 	if err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": "user not found",
-		})
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
 	}
 
-	return c.JSON(user)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
 }
