@@ -28,49 +28,60 @@ func (m *MockUsecase) GetUserById(id int) (domain.User, error) {
 }
 
 func TestCreateUserHandler(t *testing.T) {
-	mockUsecase := new(MockUsecase)
-	handler := handler.NewUserHandler(mockUsecase)
+	tests := []struct {
+		name           string
+		requestBody    []byte
+		expectedStatus int
+		mockSetup      func(mock *MockUsecase)
+	}{
+		{
+			name: "Valid User",
+			requestBody: func() []byte {
+				user := domain.User{Name: "shuhaib", Email: "shuhaib@gmail.com"}
+				body, _ := json.Marshal(user)
+				return body
+			}(),
+			expectedStatus: http.StatusCreated,
+			mockSetup: func(mock *MockUsecase) {
+				mock.On("CreateUser", domain.User{Name: "shuhaib", Email: "shuhaib@gmail.com"}).Return(nil)
+			},
+		},
+		{
+			name:           "Invalid JSON",
+			requestBody:    []byte(`{"name": "shuhaib", "email":}`),
+			expectedStatus: http.StatusBadRequest,
+			mockSetup:      func(mock *MockUsecase) {}, // No usecase method expected
+		},
+		{
+			name: "Missing Fields",
+			requestBody: func() []byte {
+				user := domain.User{Name: "", Email: ""}
+				body, _ := json.Marshal(user)
+				return body
+			}(),
+			expectedStatus: http.StatusBadRequest,
+			mockSetup:      func(mock *MockUsecase) {}, // No usecase method expected
+		},
+	}
 
-	user := domain.User{Name: "shuhaib", Email: "shuhaib@gmail.com"}
-	mockUsecase.On("CreateUser", user).Return(nil)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mockUsecase := new(MockUsecase)
+			tc.mockSetup(mockUsecase)
 
-	body, _ := json.Marshal(user)
-	req := httptest.NewRequest(http.MethodPost, "/user", bytes.NewBuffer(body))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
+			handler := handler.NewUserHandler(mockUsecase)
 
-	handler.CreateUser(rec, req)
+			req := httptest.NewRequest(http.MethodPost, "/user", bytes.NewBuffer(tc.requestBody))
+			req.Header.Set("Content-Type", "application/json")
+			rec := httptest.NewRecorder()
 
-	require.Equal(t, http.StatusCreated, rec.Code)
-	mockUsecase.AssertCalled(t, "CreateUser", user)
-}
+			handler.CreateUser(rec, req)
 
-func TestCreateUserHanlder_InvalidJSON(t *testing.T) {
-	mockUsecase := new(MockUsecase)
-	handler := handler.NewUserHandler(mockUsecase)
+			require.Equal(t, tc.expectedStatus, rec.Code)
 
-	invalidJSON := []byte(`{"name": "shuhaib", "email":}`)
-	req := httptest.NewRequest(http.MethodPost, "/user", bytes.NewBuffer(invalidJSON))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	handler.CreateUser(rec, req)
-
-	require.Equal(t, http.StatusBadRequest, rec.Code)
-}
-
-func TestCreateUserHandler_MissingFields(t *testing.T) {
-	mockUsecase := new(MockUsecase)
-	handler := handler.NewUserHandler(mockUsecase)
-
-	user := domain.User{Name: "", Email: ""}
-	body, _ := json.Marshal(user)
-
-	req := httptest.NewRequest(http.MethodPost, "/user", bytes.NewBuffer(body))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	handler.CreateUser(rec, req)
-
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+			if tc.name == "Valid User" {
+				mockUsecase.AssertCalled(t, "CreateUser", domain.User{Name: "shuhaib", Email: "shuhaib@gmail.com"})
+			}
+		})
+	}
 }
