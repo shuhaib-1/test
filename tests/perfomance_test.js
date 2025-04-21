@@ -15,7 +15,7 @@ export default function () {
 
   const headers = { 'Content-Type': 'application/json' };
 
-  let res = http.post('http://localhost:3000/user', payload, { headers });
+  let res = http.post('http://13.233.49.27:3000/user', payload, { headers });
 
   check(res, {
     'is status 201': (r) => r.status === 201,
