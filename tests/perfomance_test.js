@@ -1,26 +1,30 @@
 import http from 'k6/http';
-import { check, sleep } from 'k6';
-
-export let options = {
-  vus: 10,
-  duration: '30s',
-};
+import { check } from 'k6';
 
 export default function () {
+  const url = 'http://13.233.49.27:3000/user';
+
+  const randomId = Math.floor(Math.random() * 1000) + 1;
+
   const payload = JSON.stringify({
-    id: Math.floor(Math.random() * 10000), // generate a random ID-
+    id: randomId,
     name: 'John Doe',
-    email: 'john@example.com'
+    email: 'john@example.com',
   });
 
-  const headers = { 'Content-Type': 'application/json' };
+  const params = {
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  };
 
-  let res = http.post('http://13.233.49.27:3000/user', payload, { headers });
+  const res = http.post(url, payload, params);
+
+  console.log('Status code:', res.status);
+  console.log('Response body:', res.body);
+  console.log('Response time was', res.timings.duration + 'ms');
 
   check(res, {
     'is status 201': (r) => r.status === 201,
   });
-
-  console.log(`Response body: ${res.body}`);
-  sleep(1);
 }
