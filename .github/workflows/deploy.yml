@@ -16,7 +16,7 @@ jobs:
       PROJECT_DIR: /home/ubuntu/test
       BINARY_NAME: user-api
       SERVICE_NAME: myapp.service
-      K6_SCRIPT: /home/ubuntu/test/loadtest/script.js  # make sure this path is correct
+      K6_SCRIPT: /home/ubuntu/test/loadtest/script.js
 
     steps:
       - name: Checkout Code
@@ -33,12 +33,12 @@ jobs:
             set -e
             cd $PROJECT_DIR
 
-            if [ ! -d ".git" ]; then
-              echo "Git repo not found. Cloning..."
-              git clone https://github.com/your-username/your-repo.git .
-            else
+            if [ -d ".git" ]; then
               echo "Pulling latest code..."
               git pull origin master
+            else
+              echo ".git folder not found. Aborting to avoid overwriting existing directory."
+              exit 1
             fi
 
             echo "Creating backup of current binary..."
