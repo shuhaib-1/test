@@ -72,21 +72,5 @@ jobs:
             echo "Deployment successful."
           EOF
 
-      - name: Run Load Test with k6
-  run: |
-    echo "Running Load Test with k6..."
-    ssh -i s.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_IP << EOF
-      set -e
-
-      echo "Installing k6 via Snap..."
-      sudo apt update -y
-      sudo apt install -y snapd
-      sudo snap install k6
-
-      echo "Running the load test..."
-      k6 run $K6_SCRIPT
-    EOF
- 
-
       - name: Cleanup SSH Key
         run: rm -f s.pem
