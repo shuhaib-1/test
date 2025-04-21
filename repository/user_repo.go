@@ -1,7 +1,8 @@
 package repository
 
 import (
-	"errors"
+	"fmt"
+	"sync"
 	"test/domain"
 )
 
@@ -11,32 +12,45 @@ type UserRepository interface {
 }
 
 type UserRepositoryImpl struct {
-	users map[int]domain.User
+	data map[string]interface{}
+	mu   sync.Mutex // Add a mutex to protect the map
 }
 
 func NewUserRepository() *UserRepositoryImpl {
 	return &UserRepositoryImpl{
-		users: make(map[int]domain.User),
+		data: make(map[string]interface{}),
 	}
 }
 
-func (repo *UserRepositoryImpl) Save(user domain.User) error {
+func (r *UserRepositoryImpl) Save(user domain.User) error {
+    r.mu.Lock()         // Lock the mutex before modifying the map
+    defer r.mu.Unlock() // Unlock the mutex after modification
 
-	if _, exists := repo.users[user.ID]; exists {
-		return errors.New("failed to create user")
-	}
-
-	repo.users[user.ID] = user
-	return nil
+    // Assuming the user has an ID field of type int
+    key := fmt.Sprintf("%d", user.ID)
+    r.data[key] = user
+    return nil
 }
 
-func (repo *UserRepositoryImpl) FindByID(id int) (domain.User, error) {
+func (r *UserRepositoryImpl) Get(key string) (interface{}, bool) {
+	r.mu.Lock()         // Lock the mutex before reading the map
+	defer r.mu.Unlock() // Unlock the mutex after reading
+	val, ok := r.data[key]
+	return val, ok
+}
 
-	user, exists := repo.users[id]
+func (r *UserRepositoryImpl) FindByID(id int) (domain.User, error) {
+	r.mu.Lock()         // Lock the mutex before accessing the map
+	defer r.mu.Unlock() // Unlock the mutex after accessing
 
-	if !exists {
-		return domain.User{}, errors.New("user not found")
+	// Assuming the key is stored as a string representation of the ID
+	key := fmt.Sprintf("%d", id)
+	if val, ok := r.data[key]; ok {
+		// Type assert the value to domain.User
+		if user, ok := val.(domain.User); ok {
+			return user, nil
+		}
+		return domain.User{}, fmt.Errorf("data type mismatch for ID %d", id)
 	}
-
-	return user, nil
+	return domain.User{}, fmt.Errorf("user with ID %d not found", id)
 }
