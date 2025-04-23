@@ -64,8 +64,11 @@ jobs:
             set -e
             cd $PROJECT_DIR
 
-            echo "Installing Go..."
-            sudo apt update -y && sudo apt install -y golang-go
+            echo "Checking for go.mod file..."
+            if [ ! -f "go.mod" ]; then
+              echo "go.mod not found. Initializing Go module..."
+              go mod init
+            fi
 
             echo "Running go mod tidy..."
             go mod tidy
