@@ -42,6 +42,7 @@ jobs:
           ssh -i s.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_IP << EOF
             set -e
             cd $PROJECT_DIR
+            go mod tidy
 
             echo "Pulling latest code..."
             git pull origin master
