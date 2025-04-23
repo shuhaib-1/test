@@ -24,7 +24,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.20'
+          go-version: '1.22'  # Match the Go version to what's on your EC2 server
 
       - name: Install dependencies
         run: go mod tidy
@@ -42,7 +42,12 @@ jobs:
           ssh -i s.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_IP << EOF
             set -e
             cd $PROJECT_DIR
-            go mod tidy
+
+            # Check for go.mod file and initialize if missing
+            if [ ! -f "go.mod" ]; then
+              echo "go.mod not found, initializing Go modules..."
+              go mod init
+            fi
 
             echo "Pulling latest code..."
             git pull origin master
@@ -66,14 +71,14 @@ jobs:
             go mod tidy
 
             echo "Building new binary..."
-            go build -o user-api ./cmd/main.go
+            go build -o $BINARY_NAME ./cmd/main.go
 
             echo "Restarting service..."
-            if ! sudo systemctl restart myapp.service; then
+            if ! sudo systemctl restart $SERVICE_NAME; then
               echo "Service restart failed. Rolling back..."
-              if [ -f user-api.bak ]; then
-                mv user-api.bak user-api
-                sudo systemctl restart myapp.service
+              if [ -f ${BINARY_NAME}.bak ]; then
+                mv ${BINARY_NAME}.bak $BINARY_NAME
+                sudo systemctl restart $SERVICE_NAME
                 echo "Rollback successful."
               else
                 echo "No backup found to rollback."
