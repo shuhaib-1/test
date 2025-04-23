@@ -46,7 +46,8 @@ jobs:
             # Check for go.mod file and initialize if missing
             if [ ! -f "go.mod" ]; then
               echo "go.mod not found, initializing Go modules..."
-              go mod init
+              # Use the appropriate module path for your project
+              go mod init github.com/yourusername/yourprojectname
             fi
 
             echo "Pulling latest code..."
@@ -67,7 +68,8 @@ jobs:
             echo "Checking for go.mod file..."
             if [ ! -f "go.mod" ]; then
               echo "go.mod not found. Initializing Go module..."
-              go mod init
+              # Use the appropriate module path for your project
+              go mod init github.com/yourusername/yourprojectname
             fi
 
             echo "Running go mod tidy..."
