@@ -6,7 +6,7 @@ on:
 
 jobs:
   deploy:
-    name: Deploy to EC2
+    name: Run Tests and Deploy to EC2
     runs-on: ubuntu-latest
 
     env:
@@ -21,12 +21,23 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.20  # Replace with your Go version
+
+      - name: Install dependencies
+        run: go mod tidy
+
+      - name: Run Unit Tests
+        run: go test ./... -v
+
       - name: Setup SSH Key
         run: |
           echo "$SSH_KEY" > s.pem
           chmod 400 s.pem
 
-      - name: Pull Latest Code and Backup Current Binary
+      - name: Pull Latest Code and Backup Current Binary on EC2
         run: |
           ssh -i s.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_IP << EOF
             set -e
@@ -41,7 +52,7 @@ jobs:
             fi
           EOF
 
-      - name: Build and Restart Application with Rollback Support
+      - name: Build and Restart Application on EC2 with Rollback
         run: |
           ssh -i s.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_IP << 'EOF'
             set -e
@@ -50,10 +61,10 @@ jobs:
             echo "Installing Go..."
             sudo apt update -y && sudo apt install -y golang-go
 
-            echo "Building new binary..."
-            cd /home/ubuntu/test
+            echo "Running go mod tidy..."
             go mod tidy
-            go test ./... -v
+
+            echo "Building new binary..."
             go build -o user-api ./cmd/main.go
 
             echo "Restarting service..."
