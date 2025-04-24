@@ -23,7 +23,7 @@ func NewUserRepository() *UserRepositoryImpl {
 func (repo *UserRepositoryImpl) Save(user domain.User) error {
 
 	if _, exists := repo.users[user.ID]; exists {
-		return errors.New("failed to create user")
+		return errors.New("user already exists")
 	}
 
 	repo.users[user.ID] = user
