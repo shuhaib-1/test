@@ -12,7 +12,7 @@ jobs:
       EC2_USER: ${{ secrets.DEPLOY_USER }}
       EC2_HOST: ${{ secrets.EC2_HOST }}
       SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
-      APP_DIR: /ubuntu/test/cmd
+      APP_DIR: /home/ubuntu/test/user-api
       SERVICE_NAME: myapp.service  
 
     steps: 
@@ -60,7 +60,7 @@ jobs:
                 exit 1
               }
             else
-              git clone https://github.com/YOUR_USERNAME/YOUR_REPO.git current
+              git clone https://github.com/shuhaib-1/test.git current
             fi
 
             # Restart the service
