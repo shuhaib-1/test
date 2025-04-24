@@ -12,7 +12,7 @@ jobs:
       EC2_USER: ${{ secrets.DEPLOY_USER }}
       EC2_HOST: ${{ secrets.EC2_HOST }}
       SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
-      APP_DIR: /home/ubuntu/test/user-api
+      APP_DIR: /ubuntu/test/cmd
       SERVICE_NAME: myapp.service  
 
     steps: 
