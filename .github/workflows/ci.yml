@@ -48,9 +48,9 @@ jobs:
         run: |
           scp -i s.pem -o StrictHostKeyChecking=no ${{ env.BINARY_NAME }} ${{ env.EC2_USER }}@${{ env.EC2_IP }}:${{ env.PROJECT_DIR }}/new-binary
 
-          ssh -i s.pem -o StrictHostKeyChecking=no ${{ env.EC2_USER }}@${{ env.EC2_IP }} << 'EOF'
+          ssh -i s.pem -o StrictHostKeyChecking=no ${{ env.EC2_USER }}@${{ env.EC2_IP }} << EOF
             set -e
-            cd $PROJECT_DIR
+            cd ${{ env.PROJECT_DIR }}
 
             echo "Checking if Go is installed..."
             if ! command -v go &> /dev/null; then
@@ -58,23 +58,23 @@ jobs:
               sudo apt update -y && sudo apt install -y golang-go
             fi
 
-            if [ -f $BINARY_NAME ]; then
+            if [ -f "${{ env.BINARY_NAME }}" ]; then
               echo "Backing up current binary..."
-              mv $BINARY_NAME ${BINARY_NAME}.bak
+              mv "${{ env.BINARY_NAME }}" "${{ env.BINARY_NAME }}.bak"
             else
               echo "No existing binary found. Skipping backup."
             fi
 
             echo "Moving new binary..."
-            mv new-binary $BINARY_NAME
-            chmod +x $BINARY_NAME
+            mv new-binary "${{ env.BINARY_NAME }}"
+            chmod +x "${{ env.BINARY_NAME }}"
 
             echo "Restarting service..."
-            if ! sudo systemctl restart $SERVICE_NAME; then
+            if ! sudo systemctl restart "${{ env.SERVICE_NAME }}"; then
               echo "Service failed. Rolling back..."
-              if [ -f ${BINARY_NAME}.bak ]; then
-                mv ${BINARY_NAME}.bak $BINARY_NAME
-                sudo systemctl restart $SERVICE_NAME
+              if [ -f "${{ env.BINARY_NAME }}.bak" ]; then
+                mv "${{ env.BINARY_NAME }}.bak" "${{ env.BINARY_NAME }}"
+                sudo systemctl restart "${{ env.SERVICE_NAME }}"
                 echo "Rollback successful."
               else
                 echo "Rollback failed. No backup binary found."
