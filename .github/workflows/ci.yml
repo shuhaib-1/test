@@ -1,72 +1,87 @@
-name: CI/CD pipeline
+name: CI/CD Pipeline for user-api
 
 on:
   push:
     branches: [master]
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
-  test:
+  deploy:
+    name: Test and Deploy to EC2
     runs-on: ubuntu-latest
 
     env:
-      EC2_USER: ${{ secrets.DEPLOY_USER }}
-      EC2_HOST: ${{ secrets.EC2_HOST }}
       SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
-      APP_DIR: /home/ubuntu/test/cmd
-      SERVICE_NAME: myapp.service  
+      EC2_USER: ${{ secrets.DEPLOY_USER }}
+      EC2_IP: ${{ secrets.EC2_HOST }}
+      PROJECT_DIR: /home/ubuntu/test
+      BINARY_NAME: user-api
+      SERVICE_NAME: myapp.service
 
-    steps: 
-      - name: Checkout code
+    steps:
+      - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Set up Go
+      - name: Setup Go
         uses: actions/setup-go@v4
         with:
           go-version: '1.22'
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: go mod tidy
 
-      - name: Run unit tests
-        run: go test ./...
+      - name: Run Tests
+        run: go test ./... -v
 
-      - name: Deploy to AWS EC2
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ env.EC2_HOST }}
-          username: ${{ env.EC2_USER }}
-          key: ${{ env.SSH_KEY }}
-          envs: APP_DIR,SERVICE_NAME
-          script: |
+      - name: Build Binary
+        run: go build -o ${{ env.BINARY_NAME }} ./cmd/main.go
+
+      - name: Setup SSH Key
+        run: |
+          echo "${{ env.SSH_KEY }}" > s.pem
+          chmod 400 s.pem
+
+      - name: Deploy Binary and Restart Service with Rollback
+        run: |
+          scp -i s.pem -o StrictHostKeyChecking=no ${{ env.BINARY_NAME }} ${{ env.EC2_USER }}@${{ env.EC2_IP }}:${{ env.PROJECT_DIR }}/new-binary
+
+          ssh -i s.pem -o StrictHostKeyChecking=no ${{ env.EC2_USER }}@${{ env.EC2_IP }} << 'EOF'
             set -e
-            echo "Deploying to $APP_DIR"
-            cd $APP_DIR
+            cd $PROJECT_DIR
 
-            # Create backup
-            TIMESTAMP=$(date +"%Y%m%d%H%M%S")
-            echo "Creating backup directory: backup_$TIMESTAMP"
-            cp -r current backup_$TIMESTAMP
-
-            # Pull latest code
-            echo "Pulling latest code..."
-            if [ -d current ]; then
-              cd current
-              git pull origin master || {
-                echo "Git pull failed. Rolling back..."
-                cd ..
-                rm -rf current
-                cp -r backup_$TIMESTAMP current
-                echo "Rollback completed from backup_$TIMESTAMP"
-                exit 1
-              }
-            else
-              git clone https://github.com/shuhaib-1/test.git
+            echo "Checking if Go is installed..."
+            if ! command -v go &> /dev/null; then
+              echo "Installing Go..."
+              sudo apt update -y && sudo apt install -y golang-go
             fi
 
-            # Restart the service
-            echo "Restarting service: $SERVICE_NAME"
-            sudo systemctl restart $SERVICE_NAME
-            echo "Deployment completed successfully"
-      
-      - name: Cleanup SSH Key 
-        run: rm -f ~/.ssh/id_rsa
+            echo "Backing up current binary..."
+            if [ -f $BINARY_NAME ]; then
+              mv $BINARY_NAME ${BINARY_NAME}.bak
+            fi
+
+            echo "Moving new binary..."
+            mv new-binary $BINARY_NAME
+            chmod +x $BINARY_NAME
+
+            echo "Restarting service..."
+            if ! sudo systemctl restart $SERVICE_NAME; then
+              echo "Service failed. Rolling back..."
+              if [ -f ${BINARY_NAME}.bak ]; then
+                mv ${BINARY_NAME}.bak $BINARY_NAME
+                sudo systemctl restart $SERVICE_NAME
+                echo "Rollback successful."
+              else
+                echo "Rollback failed. No backup binary found."
+                exit 1
+              fi
+            else
+              echo "Deployment successful."
+            fi
+          EOF
+
+      - name: Cleanup SSH Key
+        run: rm -f s.pem
