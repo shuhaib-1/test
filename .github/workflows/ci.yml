@@ -58,9 +58,11 @@ jobs:
               sudo apt update -y && sudo apt install -y golang-go
             fi
 
-            echo "Backing up current binary..."
             if [ -f $BINARY_NAME ]; then
+              echo "Backing up current binary..."
               mv $BINARY_NAME ${BINARY_NAME}.bak
+            else
+              echo "No existing binary found. Skipping backup."
             fi
 
             echo "Moving new binary..."
