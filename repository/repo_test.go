@@ -1,6 +1,7 @@
 package repository_test
 
 import (
+	"math/rand"
 	"test/domain"
 	"test/repository"
 	"testing"
@@ -11,11 +12,13 @@ func TestRepo(t *testing.T) {
 	repo := repository.NewUserRepository()
 	t.Run("TestSaveUserAndFindByID", func(t *testing.T) {
 
-		us := domain.User{ID: 999, Name: "shuhaib", Email: "shuhaibpa85@gmail.com"}
+		randID := rand.Intn(100000)
+
+		us := domain.User{ID: randID, Name: "shuhaib", Email: "shuhaibpa85@gmail.com"}
 
 		repo.Save(us)
 
-		user, err := repo.FindByID(999)
+		user, err := repo.FindByID(randID)
 
 		if err != nil {
 			t.Fatal("unexpected error:", err)
@@ -28,7 +31,7 @@ func TestRepo(t *testing.T) {
 
 	t.Run("TestUserNotFound", func(t *testing.T) {
 
-		_, err := repo.FindByID(19456)
+		_, err := repo.FindByID(1945687)
 
 		if err == nil {
 			t.Fatal("expected error is missing, got nil")
