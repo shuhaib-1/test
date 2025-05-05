@@ -51,11 +51,6 @@ jobs:
             set -e
             cd ${{ env.PROJECT_DIR }}
 
-            echo "Checking if Go is installed..."
-            if ! command -v go &> /dev/null; then
-              echo "Installing Go..."
-              sudo apt update -y && sudo apt install -y golang-go
-            fi
 
             if [ -f "${{ env.BINARY_NAME }}" ]; then
               echo "Backing up current binary..."
